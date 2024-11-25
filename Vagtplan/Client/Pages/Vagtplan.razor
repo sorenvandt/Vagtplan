@@ -1,0 +1,270 @@
+﻿@page "/vagtplan"
+@using Musikfestival.Shared.Models
+@using MongoDB.Bson
+@using MongoDB.Driver
+@inject HttpClient Http;
+@inject Blazored.LocalStorage.ILocalStorageService localStore
+@inject Microsoft.AspNetCore.Components.NavigationManager NavigationManager
+
+<PageTitle>Vagtplan</PageTitle>
+<style>
+    div{
+        color: white;
+    }
+
+    h5 {
+        color: white;
+    }
+    h3 {
+        color: white;
+    }
+
+    h4 {
+        color: white;
+        font-size: 20px
+    }
+    th {
+        color: white;
+    }
+    td {
+        color: #000000;
+    }
+    body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        background-image: url('Billeder/baggrund_fade.png');
+        background-size: cover;
+        background-position: center;
+    }
+</style>
+
+<nav class="navbar fixed-top navbar-expand-lg navbar-light" style="background-color: #000000;">
+    <a class="navbar-brand" style="margin-left: 20px; color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/vagtplan">Vagtplan</a>
+    <a class="navbar-brand" style="color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/profil">Min Profil</a>
+    <a class="navbar-brand" style=" margin-left: auto; color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/">Log Ud</a>
+</nav>
+
+@if (vagterne == null)
+{
+    <p><em>Vent venligst...</em></p>
+}
+else
+{
+    <div style="text-align: right;">
+        <h4>Sorter efter</h4>
+    </div>
+    <div class="row">
+        <div class="col-6">
+            <button @onclick="NavigateToMineVagter" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Mine vagter</button>
+        </div>
+        <div class="col-6" style="text-align: right;">
+            <button @onclick="() => SorterDato()" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Dato</button>
+            <button @onclick="() => SorterPrioritet()" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Prioritet</button>
+            <button @onclick="() => SorterAntal()" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Antal</button>
+        </div>
+    </div>
+
+    @if (vagterne.Any()) // Vis kun tabellen, hvis der er nogen vagter tilbage
+    {
+        <br /><h3>Tilgængelige vagter</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <!-- Header cells for den øverste liste -->
+                    <th >Dato</th>
+                    <th>Lokation</th>
+                    <th>Prioritet</th>
+                    <th>Opgave</th>
+                    <th>Antal</th>
+                    <th>Beskrivlse</th>
+                    <th>Start</th>
+                    <th>Slut</th>
+                    <th>Tilføj vagt</th>
+                </tr>
+            </thead>
+            <tbody style="background-color: #FFFFFF">
+                @foreach (var vagter in vagterne)
+                {
+                    //Vi skifter rækkens farve til rød hvis antal rammer 0
+                    <tr style="@(vagter.Antal == 0 ? "background-color: red;" : "")">
+                        <td>@vagter.Dato</td>
+                        <td>@vagter.Lokation</td>
+                        <td>@vagter.Rangering</td>
+                        <td>@vagter.Type</td>
+                        <td>@vagter.Antal</td>
+                        <td>@vagter.Beskrivelse</td>
+                        <td>@vagter.Start</td>
+                        <td>@vagter.Slut</td>
+                        <td>
+                        
+                            @if (vagter.Antal == 0) //Det sker her
+                            {
+                                <p>Optaget</p>
+                            }
+                            else
+                            {
+                                <button @onclick="() => ListVagt(vagter)" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Tag vagt</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <br /><h3>Du har valgt:</h3>
+    <table class="table">
+        <thead>
+            @if (valgte.Any()) // Vis kun header cells, hvis der er valgte vagter
+            {
+                <tr>
+                    <!-- Header cells for "Du har valgt" listen -->
+                    <th>Dato</th>
+                    <th>Lokation</th>
+                    <th>Prioritet</th>
+                    <th>Opgave</th>
+                    <th>Antal</th>
+                    <th>Beskrivlse</th>
+                    <th>Start</th>
+                    <th>Slut</th>
+                    <th>Fjern vagt</th>
+                </tr>
+            }
+        </thead>
+        <tbody style="background-color: white">
+            @foreach (var valgtVagt in valgte)
+            {
+                <tr>
+                    <td>@valgtVagt.Dato</td>
+                    <td>@valgtVagt.Lokation</td>
+                    <td>@valgtVagt.Rangering</td>
+                    <td>@valgtVagt.Type</td>
+                    <td>@valgtVagt.Antal</td>
+                    <td>@valgtVagt.Beskrivelse</td>
+                    <td>@valgtVagt.Start</td>
+                    <td>@valgtVagt.Slut</td>
+                    <td>
+                    <img src="Billeder/Delete.png" alt="Button Image" class="DeleteButton" style="width: 28px; height: 35px; margin-left: 20px;" @onclick="() => FjernListedVagt(valgtVagt)"/>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (valgte.Any()){ // Når man trykker på "Tag Vagt" bliver ListVagt(Vagter valgtVagt) initieret og vores foreach (var valgtVagt in valgte) åbnes - 
+        // her siger vores if statement at hvis der er nogle "valgte" objekter, bliver der lavet en ny array liste og herunder popper "Godkend min vagtplan" op.
+        <button @onclick="TakeVagt" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Godkend din vagtplan</button>
+}
+}
+
+
+@code {
+    // Initialiser Vagter objekter "vagterne" så de kan læses og printes ud i en liste fra vores database > vagter.
+    private Vagter[]? vagterne;
+    // Samt en liste af <Vagter> "valgte" så vi kan gemme objekterne og rykke rundt på dem på vagtplan siden.
+    private List<Vagter> valgte = new List<Vagter>(); // Bruges lokalt til at oprette et nyt array af de vagter man har valgt til godkendelse.
+
+    // Vores booleans til at styre sorteringsknapperne
+    private bool sortAscendingByDato = true;
+    private bool sortAscendingByRangering = true;
+    private bool sortAscendingByAntal = true;
+
+    //Ny instans af Vagter "vagter" 
+    Vagter vagter = new();
+    Vagter MineVagter = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        vagterne = await Http.GetFromJsonAsync<Vagter[]>("/api/vagter"); // Vi hiver data ud fra MongoDB med instansen "vagterne" som var det første objekt vi oprettede.
+    }
+
+    private void ListVagt(Vagter valgtVagt) // ListVagt bruges lokalt på klienten for at tilføje vagterne til nyt array list. Disse er kaldt "valgtVagt" og kan ses brugt i vores andet table "Du har valgt:"
+    {
+        // Tilføj den valgte vagt til "Du har valgt" listen
+        valgte.Add(valgtVagt);
+
+        // Fjern den valgte vagt fra den øverste liste
+        vagterne = vagterne.Where(v => v != valgtVagt).ToArray();
+    }
+
+    private void FjernListedVagt(Vagter valgtVagt) // valgtVagt er en instans af modelklassen Vagter
+    {
+        // Fjern vagten fra "Du har valgt" listen
+        valgte.Remove(valgtVagt);
+
+        // Tilføj vagten tilbage til den øverste liste
+        vagterne = vagterne.Append(valgtVagt).ToArray();
+    }
+
+    // Opret en ny instans af Vagter ved klik på TakeVagt, og send hver af de valgte vagter til vores kollektion "fordeling"
+    private string storedUsername; // Vi har en string med vores storedUsername som bruges i TakeVagt til at medsende username i dataen så vores koordinator kan se hvem der har valgt vagten,
+    // samt at den kan bruges til at vise ens egne vagter. 
+
+    public async Task TakeVagt()
+    {
+        storedUsername = await localStore.GetItemAsync<string>("username"); // Her gemmes svaret fra localstore "username" i variablen storedUsername
+
+        foreach (var valgtVagt in valgte)
+        {
+            valgtVagt.Username = storedUsername; // Her læser compileren at attributten Username fra vores modeklasse skal have vores localstore storedUsername defineret
+            await Http.PostAsJsonAsync<Vagter>("fordeling", valgtVagt); // Og endelig laver vi en Post til vores kollektion "fordeling" med de valgte vagter samt brugerens username.
+        }
+
+        // Fjern de valgte vagter fra den valgte liste
+        valgte.Clear();
+
+        // Opdater vagterne ved at hente dem igen fra API'en (vagterne, der ikke er valgt)
+        vagterne = await Http.GetFromJsonAsync<Vagter[]>("/api/vagter");
+    }
+
+        public void NavigateToMineVagter() // Funktion som fører brugeren videre til ny side når de trykker på knappen "Mine vagter" i klienten
+        {
+            NavigationManager.NavigateTo("/minevagter");
+        }
+
+
+
+    private void SorterDato() // Sortering af dato (void betyder at der ikke returneres noget data, men vi udfører en handling)
+    {
+        if (sortAscendingByDato) // If statement der siger at hvis boolean sortAscendingByDato er true, så skal koden udføres
+        {
+            vagterne = vagterne.OrderBy(Vagter => Vagter.Dato).ToArray(); // Den udføres her, og bruger en extension "Order by" til at ændre rækkefølgen alt efter dato fra ældste til nyeste
+        }
+        else //Hvis ikke ovenstående statement er korrekt hopper vi ned i næste "og ellers"
+        {
+            vagterne = vagterne.OrderByDescending(Vagter => Vagter.Dato).ToArray(); // Bestemmer hvad der sorteres den anden ved, her fra nyeste til ældste
+        }
+
+        sortAscendingByDato = !sortAscendingByDato; // Toggle mellem datosortering.. Dette er en boolean med tegnet = !bool som skifter vores bools udtryk hver gang den udføres
+    }
+
+    private void SorterPrioritet() // Sortering af prioritet
+    {
+        if (sortAscendingByRangering) // Igen, ved hjælp af en boolean kan vi toggle mellem stigende og faldende sortering på rangering/prioritet
+        {
+            vagterne = vagterne.OrderBy(Vagter => Vagter.Rangering).ToArray();
+        }
+        else // Og ellers 
+        {
+            vagterne = vagterne.OrderByDescending(Vagter => Vagter.Rangering).ToArray();
+        }
+
+        sortAscendingByRangering = !sortAscendingByRangering; // On off toggle boolean
+    }
+
+    private void SorterAntal() // Sortering af antal
+    {
+        if (sortAscendingByAntal) // Samme smøre igen, boolean on off
+        {
+            vagterne = vagterne.OrderBy(Vagter => Vagter.Antal).ToArray(); // Stigende sortering af antal
+        }
+        else
+        {
+            vagterne = vagterne.OrderByDescending(Vagter => Vagter.Antal).ToArray(); // Faldende sortering af antal
+        }
+
+        sortAscendingByAntal = !sortAscendingByAntal; // On off toggle boolean
+    }
+}

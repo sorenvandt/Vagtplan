@@ -1,0 +1,274 @@
+﻿@page "/koordinator"
+@using Musikfestival.Shared.Models
+@using MongoDB.Bson
+@using MongoDB.Driver
+@inject HttpClient Http;
+@inject NavigationManager NavigationManager
+@inject Blazored.LocalStorage.ILocalStorageService localStore
+
+<nav class="navbar2 fixed-top navbar-expand-lg navbar-light" style="background-color: #000000; height: 51px; display: flex; align-items: center;">
+    <a class="navbar-brand" style="margin-left: 20px; color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/koordinator">Vagtplan</a>
+    <a class="navbar-brand" style="color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/profil">Min Profil</a>
+    <a class="navbar-brand" style=" margin-left: auto; color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/">Log Ud</a>
+</nav>
+
+<style>
+    h5 {
+        color: white;
+        text-align: right;
+    }
+
+    h3 {
+        color: white;
+        text-align: right;
+    }
+    th {
+        color: white;
+    }
+
+    td {
+        color: #000000;
+    }
+    body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        background-image: url('Billeder/baggrund_fade.png');
+        background-size: cover;
+        background-position: center;
+    }
+    p {
+        color: white;
+    }
+</style>
+
+@if (vagterne == null)
+{
+    <p><em>Vent venligst...</em></p>
+}
+else
+{
+    <h5>Sorter Efter</h5>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex;">
+            <button @onclick="() => OpretVagt()" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Opret ny vagt</button>
+            <button @onclick="() => NavigateToOversigt()" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59; margin-left: 4px;;">Brugeroversigt</button>
+        </div>
+        <div style="text-align: right;">
+            <button @onclick="() => SorterDato()" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Dato</button>
+            <button @onclick="() => SorterPrioritet()" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Prioritet</button>
+            <button @onclick="() => SorterAntal()" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Antal</button>
+        </div>
+    </div>
+    <br />
+            <div style="display: flex;">
+    <h3>Administration</h3></div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Dato</th>
+                <th>Lokation</th>
+                <th>Prioritet</th>
+                <th>Opgave</th>
+                <th>Antal</th>
+                <th>Beskrivlse</th>
+                <th>Start</th>
+                <th>Slut</th>
+                <th>Rediger vagt</th>
+            </tr>
+        </thead>
+        <tbody style="background-color: white">
+            @foreach (var vagter in vagterne)
+            {
+                <tr style="@(vagter.Antal == 0 ? "background-color: red;" : "")">
+                    <td>@vagter.Dato</td>
+                    <td>@vagter.Lokation</td>
+                    <td>@vagter.Rangering</td>
+                    <td>@vagter.Type</td>
+                    <td>@vagter.Antal</td>
+                    <td>@vagter.Beskrivelse</td>
+                    <td>@vagter.Start</td>
+                    <td>@vagter.Slut</td>
+                    <td>
+                        @if (!OpenUpdate || vagter != valgt)
+                        {
+                            <!-- Display non-editable fields -->
+                            <img src="Billeder/Update.png" alt="Button Image" class="UpdateButton" style="width: 28px; height: 35px; margin-left: 20px;" @onclick="() => UpdateVagter(vagter)" />
+                            <img src="Billeder/Delete.png" alt="Button Image" class="DeleteButton" style="width: 28px; height: 35px;" @onclick="() => DeleteVagt(vagter.VagtId)" />
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <!-- Display input fields for editing -->
+    @if (OpenUpdate || OpenCreate)
+        {
+                <table class="table">
+            @if (OpenUpdate == true)
+            {
+                <thead>
+                    <th>Du er ved at redigere en vagt</th>
+                </thead>
+            } else if (OpenCreate == true)
+            {
+                <thead>
+                    <tr><th>Du er ved at oprette en ny vagt</th></tr>
+                </thead>
+            }
+            <tbody style="background-color: white">
+            <tr>
+                <td>Dato: <input @bind="valgt.Dato" /></td>
+                <td>Lokation: <input @bind="valgt.Lokation" /></td>
+                <td>Prioritet: <input @bind="valgt.Rangering" /></td>
+                <td>Opgave: <input @bind="valgt.Type" /></td></tr>
+                <tr>
+                    <td>Antal: <input @bind="valgt.Antal" /></td>
+                <td>Beskrivelse: <input @bind="valgt.Beskrivelse" /></td>
+                <td>Start: <input @bind="valgt.Start" /></td>
+                <td>Slut: <input @bind="valgt.Slut" /></td></tr>
+                <tr>
+                <td>VagtId: @valgt.VagtId</td><td>
+                </td><td></td>
+                <td></td>
+                </tr>
+            </tbody>
+        </table> //Fordi vi har en boolean for hhv. CreatePlan og UpdatePlan, vil forskellige knapper dukke op alt efter vores boolean men felterne for input forbliver de samme
+        // Knapperne er forbundet til hver deres metode for RESTful requests.
+        @if (OpenUpdate == true)
+        {
+            <button @onclick="() => UpdatePlan(valgt)" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Gem</button>
+            }
+            else if (OpenCreate == true)
+            {
+            <button @onclick="() => CreatePlan(valgt)" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Opret ny vagt</button>
+            }
+        <button @onclick="CancelEdit" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59; margin-left: 4px;">Annuller</button>
+    }
+}
+
+@code {
+    // Initialiser Vagter objekter "vagterne" så de respektive attributter kan læses og printes ud i en liste fra vores database > vagter.
+    // Samt en liste af <Vagter> "valgte" så vi kan gemme objekterne og rykke rundt på dem på vagtplan siden.
+    private Vagter[]? vagterne; // Vi laver en instans af modelklassen og kalder denne for "vagterne" da den repræsenterer alle vagterne.
+    private bool sortAscendingByDato = true; //En boolean som vi gør brug af for at sortere dato
+    private bool sortAscendingByRangering = true; //Ligeledes en boolean for sortering af rangering
+    private bool sortAscendingByAntal = true; //Samt for sortering af antal - disse bliver alle brugt til sidst i koden
+
+    private bool OpenCreate = false;
+    private bool OpenUpdate = false;
+
+    // Vi opretter en instans af vagter og kalder den "valgt" så vi kan manipulere ï objektets respektive attributter
+    private Vagter valgt = new Vagter();
+
+    // Ved tryk på UpdateVagter bliver boolean updatePlan til true og derved initieres metoden UpdatePlan
+    private void UpdateVagter(Vagter vagt)
+    {
+        valgt = vagt; // Vi sætter vagt til at være "valgt" så det passer med at den valgte vagt som man er ved at redigere er det den bliver gemt som
+        OpenUpdate = true;
+    }
+
+    public void NavigateToOversigt()
+    {
+        NavigationManager.NavigateTo("/oversigt");
+    }
+
+    // Opret en ny instans af Vagter ved klik på HandleValidSubmit, og send hver af de valgte vagter til vores kollektion "vagter"
+
+    Vagter vagt = new();
+    private async Task UpdatePlan(Vagter vagt)
+    {
+        var response = await Http.PutAsJsonAsync("/api/vagter", vagt); //Vi opdaterer vores data i kollektionen "vagter" ud fra "vagt" instansen af vores Vagter modelklasse
+        // Gem ændringer, f.eks. ved at sende dem til serveren
+
+        if (response.IsSuccessStatusCode) //Vores RESTful forespørgsel er gemt i variablen "respons" og derfor vil vores if statement gå igennem hvis response er en success.
+        {
+            OpenUpdate = false; //Hvis handlingen gennemføres lukkes boksen for opdatering
+        }
+    }
+
+    public void OpretVagt() // Vores funktion som er forbundet til knappen "Opret ny vagt"
+    {
+        Random random = new Random(); //En metode til at generere tilfældige tal
+        valgt.VagtId = random.Next(1000, 9999); //Vi laver en randomizer på VagtId
+        OpenCreate = true; //Vores randomizer bliver initieret når man åbner for "Opret ny vagt" altså når man kører funktionen OpretVagt()
+    }
+
+    //Ved tryk på Annullerknappen bliver CancelEdit initieret og begge booleans bliver til false så muligheden for at oprette/opdatere vagt forsvinder igen.
+    public void CancelEdit()
+    {
+        OpenCreate = false;
+        OpenUpdate = false;
+    } 
+
+    protected override async Task OnInitializedAsync() //I vores html har vi en foreach vagter in vagterne, og derved initieres denne OnInitializedAsync som så henter og viser os data fra vores kollektion "vagter"
+    {
+        vagterne = await Http.GetFromJsonAsync<Vagter[]>("/api/vagter"); //Laver en RESTful forespørgsel for at hente alle vagter fra vores API og gemmer dem i vagterne - arrayet.
+    }
+
+    Vagter nyvagt = new(); //Vi opretter en ny instans af modelklassen kaldet "nyvagt" 
+    
+    private async Task CreatePlan(Vagter nyvagt) //I vores metode gør vi brug af parametrene Vagter og nyvagt, da vi skal manipulere objektet og skrive ny data til vores API
+    {
+        await Http.PostAsJsonAsync<Vagter>("/api/vagter", nyvagt); // Vi opretter ny data i vores kollektion "vagter" ud fra objektet nyvagt
+
+        NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);//Genindlæs siden så opdateringerne vises
+        OpenCreate = false; //Luk for boksen med oprettelse af ny vagt når vores request er gennemført
+    }
+
+    //Slet vagten igennem vagtId
+    private async Task DeleteVagt(int vagtId)
+    {
+        var response = await Http.DeleteAsync($"/api/vagter/{vagtId}");
+
+        if (response.IsSuccessStatusCode) // Hvis vores RESTful delete forespørgsel gennemføres bliver denne if statement opfyldt
+        {
+            NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true); //Genindlæs siden så opdateringerne vises
+        }
+    }
+
+    private void SorterDato() // Ved try på Dato knappen under "Sorter efter" rubrikken, bliver denne metode kaldt
+    {
+        if (sortAscendingByDato)
+        {
+            vagterne = vagterne.OrderBy(Vagter => Vagter.Dato).ToArray(); // Ud fra vores array vagterne bliver datoene her sorteret i stigende order. Metoden "OrderBy" er en extension som man kan bruge.
+        }
+        else
+        {
+            vagterne = vagterne.OrderByDescending(Vagter => Vagter.Dato).ToArray(); // Ligeledes i faldende order.
+        }
+
+        sortAscendingByDato = !sortAscendingByDato; // Toggle sorting order. Her skiftes vores boolean mellem true og false så vores if statement korigeres alt efter ønske.
+    }
+
+    private void SorterPrioritet() // Ved tryk på Prioritet knappen under "Sorter efter" rubrikken, bliver denne metode kaldt
+    {
+        if (sortAscendingByRangering)
+        {
+            vagterne = vagterne.OrderBy(Vagter => Vagter.Rangering).ToArray(); // Stigende rækkefølge
+        }
+        else
+        {
+            vagterne = vagterne.OrderByDescending(Vagter => Vagter.Rangering).ToArray(); // Faldende rækkefølge..
+        }
+
+        sortAscendingByRangering = !sortAscendingByRangering; // Toggle sorting order.
+    }
+
+    private void SorterAntal() // Ved tryk på Antal knappen under "Sorter efter" rubrikken, bliver denne metode kaldt
+    {
+        if (sortAscendingByAntal)
+        {
+            vagterne = vagterne.OrderBy(Vagter => Vagter.Antal).ToArray();// Stigende rækkefølge
+        }
+        else
+        {
+            vagterne = vagterne.OrderByDescending(Vagter => Vagter.Antal).ToArray(); // Faldende rækkefølge..
+        }
+
+        sortAscendingByAntal = !sortAscendingByAntal; // Toggle sorting order.
+    }
+}

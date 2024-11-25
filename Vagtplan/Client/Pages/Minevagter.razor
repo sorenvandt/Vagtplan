@@ -1,0 +1,113 @@
+﻿@page "/minevagter"
+@using Musikfestival.Shared.Models
+@using MongoDB.Bson
+@using MongoDB.Driver
+@inject HttpClient Http;
+@inject Blazored.LocalStorage.ILocalStorageService localStore
+@inject Microsoft.AspNetCore.Components.NavigationManager NavigationManager
+
+<PageTitle>Vagtplan</PageTitle>
+<style>
+
+    div{
+        color: white
+    }
+    h5 {
+        color: white;
+    }
+
+    h3 {
+        color: white;
+    }
+
+    th {
+        color: white;
+    }
+
+    td {
+        color: #000000;
+    }
+
+    body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        background-image: url('Billeder/baggrund_fade.png');
+        background-size: cover;
+        background-position: center;
+    }
+</style>
+
+<nav class="navbar fixed-top navbar-expand-lg navbar-light" style="background-color: #000000;">
+    <a class="navbar-brand" style="margin-left: 20px; color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/vagtplan">Vagtplan</a>
+    <a class="navbar-brand" style="color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/profil">Min Profil</a>
+    <a class="navbar-brand" style=" margin-left: auto; color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/">Log Ud</a>
+</nav>
+
+@if (minevagter == null)
+{
+    <p><em>Vent venligst...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-6">
+            <button @onclick="NavigateToMineVagter" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Vagtplan</button>
+    </div></div>
+
+        <br /><h3>Mine vagter</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <!-- Header cells for den øverste liste -->
+                    <th>Dato</th>
+                    <th>Lokation</th>
+                    <th>Opgave</th>
+                    <th>Beskrivlse</th>
+                    <th>Start</th>
+                    <th>Slut</th>
+                </tr>
+            </thead>
+            <tbody style="background-color: #FFFFFF">
+            @foreach (var vagter in minevagter.Where(v => v.Username == storedUsername)) // En extension .Where som udføres med parametrene v => v.Username == storedUsername))
+            //Dette er et lambdaudtryk for at kun hvis egenskaben Username fra vores modeklassen stemmer overens med storedUsername (localstore) så vises da de særskilte vagter. Herved kan man
+            // som bruger se kun de vagter som er oprettet i ens eget navn/brugernavn.
+            {
+                <tr>
+                    <td>@vagter.Dato</td>
+                    <td>@vagter.Lokation</td>
+                    <td>@vagter.Type</td>
+                    <td>@vagter.Beskrivelse</td>
+                    <td>@vagter.Start</td>
+                    <td>@vagter.Slut</td>
+                </tr>
+            }
+
+            </tbody>
+        </table>
+    }
+
+
+@code {
+    // Initialiser Vagter objekter "vagterne" så de kan læses og printes ud i en liste fra vores database > vagter.
+    private Vagter[]? minevagter; // Vi opretter en instans af array fra modelklassen Vagter, kalder den for minevagter og bruger denne i vores table.
+
+    Vagter vagter = new(); // Vi opretter en instans af et array fra 
+
+    private string storedUsername; // Vi opretter en string variabel storedUsername så denne kan bruges til at gemme data.
+
+    protected override async Task OnInitializedAsync() // Dette er et API kald der udløses når brugeren besøger siden
+    {
+        minevagter = await Http.GetFromJsonAsync<Vagter[]>("fordeling"); // Den gemmer information fra vores kollektion "fordeling" i objektet minevagter som vi gør brug af i vores html til at vise
+        // de vagter der stemmer overens med ens brugernavn
+        storedUsername = await localStore.GetItemAsync<string>("username"); // Her hentes username fra vores localstore (gemt i localstore ved login) og den gemmes her i variablen storedUsername.
+    }
+
+    public void NavigateToMineVagter() // Ved klik på "Vagtplan" knappen udløses denne NavigateTo metode som er en Asp.Core komponent vi har injected, metoden bruges til nemt at navigere rundt på webapplikationen.
+    {
+        NavigationManager.NavigateTo("/vagtplan"); // Linket /vagtplan fører til vores vagtplan side.
+    }
+
+}

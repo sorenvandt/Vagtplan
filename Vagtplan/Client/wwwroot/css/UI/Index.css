@@ -1,0 +1,52 @@
+﻿namespace Vagtplan.Client.wwwroot.css.UI
+
+body {
+    height: 100px;
+}
+
+body {
+    display: -ms-flexbox;
+    display: center;
+    -ms-flex-align: center;
+    align-items: center;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    background-image href="logo": 50%;
+}
+
+    .form-signin {
+        width: 100%;
+        max-width: 330px;
+        padding: 15px;
+        margin: auto;
+    }
+
+        .form-signin .checkbox {
+            font-weight: 400;
+        }
+
+        .form-signin .form-control {
+            position: relative;
+            box-sizing: border-box;
+            border-color: #E1E3FB;
+            height: auto;
+            padding: 10px;
+            font-size: 16px;
+            background-color: #E1E3FB;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+
+        .form-signin input[type="username"] {
+            margin-bottom: 5px;
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .form-signin input[type="password"] {
+            margin-bottom: 15px;
+        }
+
+    .navbar {
+        display: none;
+    }

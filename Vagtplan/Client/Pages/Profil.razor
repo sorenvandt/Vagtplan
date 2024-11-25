@@ -1,0 +1,129 @@
+﻿@page "/profil"
+@using Musikfestival.Shared.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject Blazored.LocalStorage.ILocalStorageService localStore
+@inject Microsoft.AspNetCore.Components.NavigationManager NavigationManager
+
+<PageTitle>Profilside</PageTitle>
+<style>
+    h1 {
+        color: white;
+    }
+
+    body {
+        background-image: url('Billeder/baggrund_fade.png');
+        background-size: cover;
+        background-position: center;
+    }
+    </style>
+
+@code {
+    private string storedUsername; // Vi har en variabel string storedUsername, så vi kan gemme noget i denne senere.
+    private Bruger[]? brugere; // Vi laver en instans af Bruger - brugere.
+    private Bruger matchingUser; // Ligeledes med matchingUser
+    private bool EnableEdit = false; // Flag for at indikere, om redigering er aktiv
+    private string vagtplanHref; // Vi opretter en string vagtplanHref da denne skal bruges senere.
+
+    protected override async Task OnInitializedAsync() // Her trækker vi information fra vores brugerkollektion
+    {
+        storedUsername = await localStore.GetItemAsync<string>("username"); // Vi gemmer vores localstore username i variablen "storedUsername" så vi kan bruge dette på siden til at filtrere 
+        brugere = await Http.GetFromJsonAsync<Bruger[]>("/api/bruger"); // Vi henter information om brugere fra vores API kollektion "bruger" og gemmer disse i variablen "brugere"
+        matchingUser = brugere.FirstOrDefault(user => user.Username == storedUsername); // Her filtrerer vi at hvad der vises stemmer overens med storedUsername og derved username fra vores modelklasse.. 
+        // FirstOrDefault er en LINQ metode der returnere det første element i samlingen der opfylder den specificerede betingelse. Parametrene er et lambda udtryk der siger at:
+        // Det ønskede element skal have Username egenskaben værende lig med storedUsername
+
+
+        vagtplanHref = matchingUser.Type.Trim() == "Frivillig" ? "/vagtplan" : "/koordinator"; // Variablen vagtplanHref bruges til at dirigere brugeren hen til hvad der stemmer overens med deres tilladelser (frilliv, koordinator)
+
+    }
+
+    private void StartEditing() // Hvis denne metode bliver kaldt udløser det at vores boolean EnableEdit bliver true, og derved kan vi ved hjælp af if statements i vores div, hvis den bliver true - 
+    // binde vores objekt af Bruger til matchinUser elementerne som er sat til at ændre det dokument som stemmer overens med vores  localstore storedUsername 
+    {
+        EnableEdit = true; // Boolean udløses, true.
+
+    }
+    private async Task SaveChanges() // Ved tryk på Gem Ændringer kan vi nu gemme de forbundne data som stemmer overens med vores objekt matchingUser 
+    {
+        var response = await Http.PutAsJsonAsync("/api/bruger", matchingUser); // Response variablen bruges her til at fortælle os om handlingen blev korrekt udført, i så fald vil vores 
+        //boolean EnableEdit skifte tilbage til false
+
+        if (response.IsSuccessStatusCode) // Hvis response var en success
+        {
+            Console.WriteLine("Changes saved successfully."); // Kan det ses i konsollen
+            EnableEdit = false; // Og vores boolean skifter værdi
+        }
+        else // ellers
+        {
+            Console.WriteLine("Failed to save changes."); // Eventuelt kan her kobles en fejlmeddelelese på for at underrette brugeren om fejl.
+            // Handle the failure, e.g., show an error message
+        }
+    }
+}
+
+<nav class="navbar fixed-top navbar-expand-lg navbar-light" style="background-color: #000000;">
+    <a class="navbar-brand" style="margin-left: 20px; color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="@vagtplanHref">Vagtplan</a>
+    <a class="navbar-brand" style="color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/profil">Min Profil</a>
+    <a class="navbar-brand" style=" margin-left: auto; color: #ffffff; border-radius: 0.8em; padding: 0.3em 1em; background-color: #292929; font-size: 17px;" href="/">Log Ud</a>
+</nav>
+
+<br />
+
+<head>
+    <link rel="stylesheet" href="css/UI/Profil.css" />
+</head>
+
+<body1>
+    @if (matchingUser != null)
+    {
+        <br />
+        <div class="container-box">
+            <h3>Kontaktoplysninger
+                @if (EnableEdit)
+                {
+                    <button @onclick="SaveChanges" type="submit" class="btn btn-primary" style="color:white; background-color: #061C59;">Gem ændringer</button>
+                }
+                else
+                {
+                    <img src="Billeder/Update.png" alt="Button Image" class="UpdateButton" style="width: 28px; height: 35px;" @onclick="StartEditing" />
+                }
+            </h3>
+            @if (EnableEdit)
+            {
+                <p><b>Navn:</b> <input @bind="matchingUser.Navn" /></p>
+                <p><b>Email:</b> <input @bind="matchingUser.Email" /></p>
+                <p><b>Kontaktnummer:</b> <input @bind="matchingUser.Tlf" /></p>
+                <p><b>Adresse:</b> <input @bind="matchingUser.Adresse" /></p>
+            }
+            else
+            {
+                <p><b>Navn:</b> @matchingUser.Navn</p>
+                <p><b>Email:</b> @matchingUser.Email</p>
+                <p><b>Kontaktnummer:</b> @matchingUser.Tlf</p>
+                <p><b>Adresse:</b> @matchingUser.Adresse</p>
+            }
+        </div>
+    }
+</body1>
+
+<body2>
+    @if (matchingUser != null)
+    {
+        <br />
+        <div class="container-box">
+            <h3>Biografi</h3>
+            @if (EnableEdit)
+            {
+                <p><b>@matchingUser.Type</b></p>
+                <p><b>Om mig:</b> <input @bind="matchingUser.Beskrivelse" /></p>
+            }
+            else
+            {
+                <p><b>@matchingUser.Type</b></p>
+                <p><b>Om mig:</b> @matchingUser.Beskrivelse</p>
+            }
+        </div>
+    }
+    <br />
+</body2>
